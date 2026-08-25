@@ -66,6 +66,17 @@ public class WalletTests
     }
 
     [Fact]
+    public void Wallet_Debit_Should_Allow_Amount_Equal_To_Balance()
+    {
+        var wallet = new Wallet();
+        wallet.Credit(100m);
+
+        wallet.Debit(100m);
+
+        Assert.Equal(0m, wallet.Balance);
+    }
+
+    [Fact]
     public void Wallet_Debit_Should_Throw_Exception_And_Preserve_Balance_When_Insufficient_Funds()
     {
         var wallet = new Wallet();
