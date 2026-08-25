@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/Itens de Solução/">
+    <File Path=".env" />
+    <File Path=".env.example" />
+    <File Path=".gitignore" />
+    <File Path="compose.yaml" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/TransferFlow.Api/TransferFlow.Api.csproj" />
     <Project Path="src/TransferFlow.Application/TransferFlow.Application.csproj" />
