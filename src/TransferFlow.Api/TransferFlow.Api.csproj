@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>6646ddde-1c9d-417e-bf8d-7cd4ca5bba58</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TransferFlow.Application\TransferFlow.Application.csproj" />
+    <ProjectReference Include="..\TransferFlow.Infrastructure\TransferFlow.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

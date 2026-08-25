@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TransferFlow.Api/TransferFlow.Api.csproj" />
+    <Project Path="src/TransferFlow.Application/TransferFlow.Application.csproj" />
+    <Project Path="src/TransferFlow.Domain/TransferFlow.Domain.csproj" />
+    <Project Path="src/TransferFlow.Infrastructure/TransferFlow.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TransferFlow.Domain.Tests/TransferFlow.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
