@@ -39,9 +39,9 @@ public class WalletTests
         var amountToCredit = 100m;
         wallet.Credit(amountToCredit);
         var amountToDebit = 50m;
-        
+
         wallet.Debit(amountToDebit);
-        
+
         Assert.Equal(amountToCredit - amountToDebit, wallet.Balance);
     }
 
@@ -86,5 +86,47 @@ public class WalletTests
 
         Assert.Throws<InvalidOperationException>(() => wallet.Debit(amountToDebit));
         Assert.Equal(amountToCredit, wallet.Balance);
+    }
+
+    [Fact]
+    public void Wallet_Credit_Should_Throw_Exception_When_Decimal_Precision_Exceeds()
+    {
+        var wallet = new Wallet();
+        var amountToCredit = 100.123m;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => wallet.Credit(amountToCredit));
+    }
+
+    [Fact]
+    public void Wallet_Debit_Should_Throw_Exception_When_Decimal_Precision_Exceeds()
+    {
+        var wallet = new Wallet();
+        wallet.Credit(100m);
+        var amountToDebit = 50.123m;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => wallet.Debit(amountToDebit));
+    }
+
+    [Fact]
+    public void Wallet_Credit_Should_Allow_Maximum_Decimal_Precision()
+    {
+        var wallet = new Wallet();
+        var amountToCredit = 100.12m;
+
+        wallet.Credit(amountToCredit);
+
+        Assert.Equal(amountToCredit, wallet.Balance);
+    }
+
+    [Fact]
+    public void Wallet_Debit_Should_Allow_Maximum_Decimal_Precision()
+    {
+        var wallet = new Wallet();
+        wallet.Credit(100.12m);
+        var amountToDebit = 50.12m;
+
+        wallet.Debit(amountToDebit);
+
+        Assert.Equal(50m, wallet.Balance);
     }
 }
