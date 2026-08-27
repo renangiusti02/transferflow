@@ -1,6 +1,13 @@
 @TransferFlow.Api_HostAddress = https://localhost:7134
 
-GET {{TransferFlow.Api_HostAddress}}/health/
-Accept: text/plain
+### Health
 
-###
+GET {{TransferFlow.Api_HostAddress}}/health
+
+### Create wallet
+
+POST {{TransferFlow.Api_HostAddress}}/wallets
+
+### Get wallet
+
+GET {{TransferFlow.Api_HostAddress}}/wallets/e787d809-dd8f-4915-b97c-e7d4e94aa700
