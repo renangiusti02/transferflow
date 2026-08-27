@@ -29,9 +29,13 @@ public sealed class WalletRepository : IWalletRepository
             .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
     }
 
-    public async Task SaveChangesAsync(
+    public async Task<Wallet?> GetForUpdateAsync(
+        Guid id,
         CancellationToken cancellationToken = default)
     {
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        return await _dbContext.Wallets
+            .FirstOrDefaultAsync(
+                wallet => wallet.Id == id,
+                cancellationToken);
     }
 }

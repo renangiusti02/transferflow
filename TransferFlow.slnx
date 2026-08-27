@@ -12,6 +12,7 @@
     <Project Path="src/TransferFlow.Infrastructure/TransferFlow.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/TransferFlow.Application.Tests/TransferFlow.Application.Tests.csproj" Id="8bb80484-1dd7-428d-ba15-70b278ebbc46" />
     <Project Path="tests/TransferFlow.Domain.Tests/TransferFlow.Domain.Tests.csproj" />
   </Folder>
 </Solution>

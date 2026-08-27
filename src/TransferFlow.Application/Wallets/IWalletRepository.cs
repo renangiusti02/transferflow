@@ -11,6 +11,7 @@ public interface IWalletRepository
         Guid id,
         CancellationToken cancellationToken = default);
 
-    Task SaveChangesAsync(
+    Task<Wallet?> GetForUpdateAsync(
+        Guid id,
         CancellationToken cancellationToken = default);
 }

@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using TransferFlow.Application.Common;
 using TransferFlow.Domain;
 using TransferFlow.Infrastructure.Persistence.Configurations;
 
 namespace TransferFlow.Infrastructure.Persistence;
 
-public sealed class TransferFlowDbContext : DbContext
+public sealed class TransferFlowDbContext : DbContext, IUnitOfWork
 {
     public TransferFlowDbContext(
         DbContextOptions<TransferFlowDbContext> options) 
@@ -14,10 +15,15 @@ public sealed class TransferFlowDbContext : DbContext
 
     public DbSet<Wallet> Wallets => Set<Wallet>();
 
+    public DbSet<Transfer> Transfers => Set<Transfer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(
             new WalletConfiguration());
+
+        modelBuilder.ApplyConfiguration(
+            new TransferConfiguration());
 
         base.OnModelCreating(modelBuilder);
     }
