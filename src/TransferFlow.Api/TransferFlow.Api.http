@@ -11,3 +11,17 @@ POST {{TransferFlow.Api_HostAddress}}/wallets
 ### Get wallet
 
 GET {{TransferFlow.Api_HostAddress}}/wallets/e787d809-dd8f-4915-b97c-e7d4e94aa700
+
+### Create transfer
+
+POST {{TransferFlow.Api_HostAddress}}/transfers
+Content-Type: application/json
+
+{
+  "sourceWalletId": "175b5dc4-8c32-41ab-a13a-cdff6dc08359",
+  "destinationWalletId": "e787d809-dd8f-4915-b97c-e7d4e94aa700",
+  "amount": 30.00
+}
+
+### Get transfer
+GET {{TransferFlow.Api_HostAddress}}/transfers/51fe5e2f-58c7-4e0d-942b-87b335218876
