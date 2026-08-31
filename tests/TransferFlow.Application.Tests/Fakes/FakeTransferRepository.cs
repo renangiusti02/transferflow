@@ -21,4 +21,14 @@ public sealed class FakeTransferRepository : ITransferRepository
 
         return Task.FromResult(transfer);
     }
+
+    public Task<Transfer?> GetByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        var transfer = Transfers.FirstOrDefault(
+            transfer => transfer.IdempotencyKey == idempotencyKey);
+
+        return Task.FromResult(transfer);
+    }
 }

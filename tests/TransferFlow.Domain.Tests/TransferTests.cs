@@ -11,8 +11,9 @@ public class TransferTests
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
         var amount = 100m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount);
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
 
         Assert.NotEqual(Guid.Empty, transfer.Id);
     }
@@ -21,18 +22,20 @@ public class TransferTests
     public void Transfer_Should_Throw_When_Source_Wallet_Id_Is_Empty()
     {
         var destinationWalletId = Guid.NewGuid();
+        var idempotencyKey = Guid.NewGuid().ToString();
 
         Assert.Throws<ArgumentException>(() =>
-            new Transfer(Guid.Empty, destinationWalletId, 100m));
+            new Transfer(Guid.Empty, destinationWalletId, 100m, idempotencyKey));
     }
 
     [Fact]
     public void Transfer_Should_Throw_When_Destination_Wallet_Id_Is_Empty()
     {
         var sourceWalletId = Guid.NewGuid();
+        var idempotencyKey = Guid.NewGuid().ToString();
 
         Assert.Throws<ArgumentException>(() =>
-            new Transfer(sourceWalletId, Guid.Empty, 100m));
+            new Transfer(sourceWalletId, Guid.Empty, 100m, idempotencyKey));
     }
 
     [Fact]
@@ -41,8 +44,9 @@ public class TransferTests
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
         var amount = 100m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount);
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
 
         Assert.Equal(sourceWalletId, transfer.SourceWalletId);
         Assert.Equal(destinationWalletId, transfer.DestinationWalletId);
@@ -54,8 +58,9 @@ public class TransferTests
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
         var amount = 100m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount);
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
 
         Assert.Equal(amount, transfer.Amount);
     }
@@ -67,8 +72,9 @@ public class TransferTests
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
         var amount = 100m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount);
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
         var after = DateTimeOffset.UtcNow;
 
         Assert.InRange(transfer.CreatedAtUtc, before, after);
@@ -79,8 +85,9 @@ public class TransferTests
     {
         var walletId = Guid.NewGuid();
         var amount = 100m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        Assert.Throws<ArgumentException>(() => new Transfer(walletId, walletId, amount));
+        Assert.Throws<ArgumentException>(() => new Transfer(walletId, walletId, amount, idempotencyKey));
     }
 
     [Theory]
@@ -90,8 +97,9 @@ public class TransferTests
     {
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => new Transfer(sourceWalletId, destinationWalletId, amount));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey));
     }
 
     [Fact]
@@ -100,8 +108,9 @@ public class TransferTests
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
         var amount = 100.123m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => new Transfer(sourceWalletId, destinationWalletId, amount));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey));
     }
 
     [Fact]
@@ -110,9 +119,45 @@ public class TransferTests
         var sourceWalletId = Guid.NewGuid();
         var destinationWalletId = Guid.NewGuid();
         var amount = 100.12m;
+        var idempotencyKey = Guid.NewGuid().ToString();
 
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount);
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
 
         Assert.Equal(amount, transfer.Amount);
+    }
+
+    [Fact]
+    public void Transfer_Should_Throw_When_Idempotency_Key_Is_Empty()
+    {
+        var sourceWalletId = Guid.NewGuid();
+        var destinationWalletId = Guid.NewGuid();
+        var amount = 100m;
+        var idempotencyKey = "";
+
+        Assert.Throws<ArgumentException>(() => new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey));
+    }
+
+    [Fact]
+    public void Transfer_Should_Throw_When_Idempotency_Key_Exceeds_Maximum_Length()
+    { 
+        var sourceWalletId = Guid.NewGuid();
+        var destinationWalletId = Guid.NewGuid();
+        var amount = 100m;
+        var idempotencyKey = new string('a', 101);
+
+        Assert.Throws<ArgumentException>(() => new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey));
+    }
+
+    [Fact]
+    public void Transfer_Should_Store_Idempotency_Key()
+    {
+        var sourceWalletId = Guid.NewGuid();
+        var destinationWalletId = Guid.NewGuid();
+        var amount = 100m;
+        var idempotencyKey = new string('a', 100);
+
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
+
+        Assert.Equal(idempotencyKey, transfer.IdempotencyKey);
     }
 }

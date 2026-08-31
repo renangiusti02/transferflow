@@ -53,5 +53,13 @@ public sealed class TransferConfiguration : IEntityTypeConfiguration<Transfer>
             .HasColumnName("created_at_utc")
             .HasColumnType("timestamp with time zone")
             .IsRequired();
+
+        builder.Property(transfer => transfer.IdempotencyKey)
+            .HasColumnName("idempotency_key")
+            .HasMaxLength(100)
+            .IsRequired();
+
+        builder.HasIndex(transfer => transfer.IdempotencyKey)
+            .IsUnique();
     }
 }

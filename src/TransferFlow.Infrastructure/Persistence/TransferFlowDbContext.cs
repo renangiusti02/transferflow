@@ -1,11 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using TransferFlow.Application.Common;
 using TransferFlow.Domain;
 using TransferFlow.Infrastructure.Persistence.Configurations;
 
 namespace TransferFlow.Infrastructure.Persistence;
 
-public sealed class TransferFlowDbContext : DbContext, IUnitOfWork
+public sealed class TransferFlowDbContext : DbContext
 {
     public TransferFlowDbContext(
         DbContextOptions<TransferFlowDbContext> options) 

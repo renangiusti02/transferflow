@@ -16,7 +16,7 @@ GET {{TransferFlow.Api_HostAddress}}/wallets/e787d809-dd8f-4915-b97c-e7d4e94aa70
 
 POST {{TransferFlow.Api_HostAddress}}/transfers
 Content-Type: application/json
-
+Idempotency-Key: 7b2b4e5a-1234-4bc3-a81d-8888cf34aa01
 {
   "sourceWalletId": "175b5dc4-8c32-41ab-a13a-cdff6dc08359",
   "destinationWalletId": "e787d809-dd8f-4915-b97c-e7d4e94aa700",
