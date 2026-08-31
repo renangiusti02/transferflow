@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/Itens de Solução/">
+    <File Path=".editorconfig" />
     <File Path=".env" />
     <File Path=".env.example" />
     <File Path=".gitignore" />
     <File Path="compose.yaml" />
+    <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/TransferFlow.Api/TransferFlow.Api.csproj" />
@@ -14,6 +16,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/TransferFlow.Application.Tests/TransferFlow.Application.Tests.csproj" Id="8bb80484-1dd7-428d-ba15-70b278ebbc46" />
     <Project Path="tests/TransferFlow.Domain.Tests/TransferFlow.Domain.Tests.csproj" />
-    <Project Path="TransferFlow.Integration.Tests/TransferFlow.Integration.Tests.csproj" Id="e88d0ad5-78a8-49e0-86dd-e8eead7010b9" />
+    <Project Path="tests/TransferFlow.Integration.Tests/TransferFlow.Integration.Tests.csproj" />
   </Folder>
 </Solution>

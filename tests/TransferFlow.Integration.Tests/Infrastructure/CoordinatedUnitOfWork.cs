@@ -1,6 +1,7 @@
 ﻿using TransferFlow.Application.Common;
 
 namespace TransferFlow.Integration.Tests.Infrastructure;
+
 internal sealed class CoordinatedUnitOfWork : IUnitOfWork
 {
     private readonly IUnitOfWork _inner;
