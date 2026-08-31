@@ -17,9 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\TransferFlow.Application\TransferFlow.Application.csproj" />
-    <ProjectReference Include="..\src\TransferFlow.Domain\TransferFlow.Domain.csproj" />
-    <ProjectReference Include="..\src\TransferFlow.Infrastructure\TransferFlow.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\TransferFlow.Application\TransferFlow.Application.csproj" />
+    <ProjectReference Include="..\..\src\TransferFlow.Domain\TransferFlow.Domain.csproj" />
+    <ProjectReference Include="..\..\src\TransferFlow.Infrastructure\TransferFlow.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
