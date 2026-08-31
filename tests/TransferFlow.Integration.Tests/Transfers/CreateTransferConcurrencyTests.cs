@@ -61,7 +61,7 @@ public sealed class CreateTransferConcurrencyTests
         Guid destinationWalletId,
         decimal amount,
         string idempotencyKey,
-        Barrier barrier,
+        AsyncBarrier barrier,
         CancellationToken cancellationToken = default)
     {
         await using var dbContext = CreateDbContext();
@@ -132,7 +132,7 @@ public sealed class CreateTransferConcurrencyTests
 
         try
         {
-            using var barrier = new Barrier(2);
+            var barrier = new AsyncBarrier(2);
 
             using var cancellationTokenSource =
                 new CancellationTokenSource(
@@ -223,7 +223,7 @@ public sealed class CreateTransferConcurrencyTests
 
         try
         {
-            using var barrier = new Barrier(2);
+            var barrier = new AsyncBarrier(2);
 
             using var cancellationTokenSource =
                 new CancellationTokenSource(
