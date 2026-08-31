@@ -11,6 +11,8 @@ public class Transfer
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
+    public string IdempotencyKey { get; private set; } = null!;
+
     private Transfer()
     {
     }
@@ -18,8 +20,21 @@ public class Transfer
     public Transfer(
         Guid sourceWalletId,
         Guid destinationWalletId,
-        decimal amount)
+        decimal amount,
+        string idempotencyKey)
     {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new ArgumentException(
+                "Idempotency key is required.",
+                nameof(idempotencyKey));
+        }
+        if (idempotencyKey.Length > 100)
+        {
+            throw new ArgumentException(
+                "Idempotency key must have at most 100 characters.",
+                nameof(idempotencyKey));
+        }
         if (sourceWalletId == Guid.Empty)
         {
             throw new ArgumentException(
@@ -46,6 +61,7 @@ public class Transfer
         DestinationWalletId = destinationWalletId;
         Amount = amount;
         CreatedAtUtc = DateTimeOffset.UtcNow;
+        IdempotencyKey = idempotencyKey;
     }
 
     private static void ValidateAmount(decimal amount)

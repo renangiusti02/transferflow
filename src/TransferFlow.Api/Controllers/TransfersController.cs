@@ -35,6 +35,7 @@ public sealed class TransfersController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<TransferResponse>> CreateTransferAsync(
         CreateTransferRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string idempotencyKey,
         CancellationToken cancellationToken)
     {
         try
@@ -44,6 +45,7 @@ public sealed class TransfersController : ControllerBase
                 request.SourceWalletId,
                 request.DestinationWalletId,
                 request.Amount,
+                idempotencyKey,
                 cancellationToken);
             return CreatedAtAction(
                 nameof(GetTransferById),

@@ -9,4 +9,8 @@ public interface ITransferRepository
     Task<Transfer?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task<Transfer?> GetByIdempotencyKeyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default);
 }

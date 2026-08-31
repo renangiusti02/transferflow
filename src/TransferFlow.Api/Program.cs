@@ -15,8 +15,7 @@ var connectionString =
 builder.Services.AddDbContext<TransferFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-builder.Services.AddScoped<IUnitOfWork>(serviceProvider =>
-    serviceProvider.GetRequiredService<TransferFlowDbContext>());
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 builder.Services.AddScoped<ITransferRepository, TransferRepository>();

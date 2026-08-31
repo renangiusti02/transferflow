@@ -24,9 +24,24 @@ public sealed class CreateTransferUseCase
         Guid sourceWalletId,
         Guid destinationWalletId,
         decimal amount,
+        string idempotencyKey,
         CancellationToken cancellationToken = default)
     {
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount);
+        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
+
+        var existingTransfer =
+            await _transferRepository.GetByIdempotencyKeyAsync(
+                idempotencyKey,
+                cancellationToken);
+
+        if (existingTransfer is not null)
+        {
+            return ResolveExistingTransfer(
+                existingTransfer,
+                sourceWalletId,
+                destinationWalletId,
+                amount);
+        }
 
         var sourceWallet = await _walletRepository.GetForUpdateAsync(sourceWalletId, cancellationToken) ??
             throw new KeyNotFoundException("Source wallet not found");
@@ -38,7 +53,59 @@ public sealed class CreateTransferUseCase
         destinationWallet.Credit(amount);
 
         _transferRepository.Add(transfer);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return new TransferResponse(transfer.Id, transfer.SourceWalletId, transfer.DestinationWalletId, transfer.Amount, transfer.CreatedAtUtc);
+
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(
+                cancellationToken);
+
+            return ToResponse(transfer);
+        }
+        catch (DuplicateIdempotencyKeyException)
+        {
+            existingTransfer =
+                await _transferRepository.GetByIdempotencyKeyAsync(
+                    idempotencyKey,
+                    cancellationToken);
+
+            if (existingTransfer is null)
+            {
+                throw;
+            }
+
+            return ResolveExistingTransfer(
+                existingTransfer,
+                sourceWalletId,
+                destinationWalletId,
+                amount);
+        }
+    }
+
+    private static TransferResponse ResolveExistingTransfer(
+        Transfer existingTransfer,
+        Guid sourceWalletId,
+        Guid destinationWalletId,
+        decimal amount)
+    {
+        if (existingTransfer.SourceWalletId != sourceWalletId ||
+            existingTransfer.DestinationWalletId != destinationWalletId ||
+            existingTransfer.Amount != amount)
+        {
+            throw new InvalidOperationException(
+                "Idempotency key was already used with different transfer data.");
+        }
+
+        return ToResponse(existingTransfer);
+    }
+
+    private static TransferResponse ToResponse(
+        Transfer transfer)
+    {
+        return new TransferResponse(
+            transfer.Id,
+            transfer.SourceWalletId,
+            transfer.DestinationWalletId,
+            transfer.Amount,
+            transfer.CreatedAtUtc);
     }
 }

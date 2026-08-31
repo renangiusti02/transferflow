@@ -14,5 +14,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/TransferFlow.Application.Tests/TransferFlow.Application.Tests.csproj" Id="8bb80484-1dd7-428d-ba15-70b278ebbc46" />
     <Project Path="tests/TransferFlow.Domain.Tests/TransferFlow.Domain.Tests.csproj" />
+    <Project Path="TransferFlow.Integration.Tests/TransferFlow.Integration.Tests.csproj" Id="e88d0ad5-78a8-49e0-86dd-e8eead7010b9" />
   </Folder>
 </Solution>
