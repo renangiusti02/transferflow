@@ -9,6 +9,7 @@ public sealed class CreateTransferUseCase
     private readonly IWalletRepository _walletRepository;
     private readonly ITransferRepository _transferRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private const int MaxConcurrencyAttempts = 3;
 
     public CreateTransferUseCase(
         IWalletRepository walletRepository,
@@ -21,13 +22,51 @@ public sealed class CreateTransferUseCase
     }
 
     public async Task<TransferResponse> ExecuteAsync(
+    Guid sourceWalletId,
+    Guid destinationWalletId,
+    decimal amount,
+    string idempotencyKey,
+    CancellationToken cancellationToken = default)
+    {
+        for (var attempt = 1;
+             attempt < MaxConcurrencyAttempts;
+             attempt++)
+        {
+            try
+            {
+                return await ExecuteAttemptAsync(
+                    sourceWalletId,
+                    destinationWalletId,
+                    amount,
+                    idempotencyKey,
+                    cancellationToken);
+            }
+            catch (ConcurrencyConflictException)
+            {
+                // Retry the entire operation using fresh database state.
+            }
+        }
+
+        return await ExecuteAttemptAsync(
+            sourceWalletId,
+            destinationWalletId,
+            amount,
+            idempotencyKey,
+            cancellationToken);
+    }
+
+    private async Task<TransferResponse> ExecuteAttemptAsync(
         Guid sourceWalletId,
         Guid destinationWalletId,
         decimal amount,
         string idempotencyKey,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        var transfer = new Transfer(sourceWalletId, destinationWalletId, amount, idempotencyKey);
+        var transfer = new Transfer(
+            sourceWalletId,
+            destinationWalletId,
+            amount,
+            idempotencyKey);
 
         var existingTransfer =
             await _transferRepository.GetByIdempotencyKeyAsync(
@@ -43,11 +82,19 @@ public sealed class CreateTransferUseCase
                 amount);
         }
 
-        var sourceWallet = await _walletRepository.GetForUpdateAsync(sourceWalletId, cancellationToken) ??
-            throw new KeyNotFoundException("Source wallet not found");
+        var sourceWallet =
+            await _walletRepository.GetForUpdateAsync(
+                sourceWalletId,
+                cancellationToken)
+            ?? throw new KeyNotFoundException(
+                "Source wallet not found");
 
-        var destinationWallet = await _walletRepository.GetForUpdateAsync(destinationWalletId, cancellationToken) ?? 
-            throw new KeyNotFoundException("Destination wallet not found");
+        var destinationWallet =
+            await _walletRepository.GetForUpdateAsync(
+                destinationWalletId,
+                cancellationToken)
+            ?? throw new KeyNotFoundException(
+                "Destination wallet not found");
 
         sourceWallet.Debit(amount);
         destinationWallet.Credit(amount);
@@ -64,9 +111,10 @@ public sealed class CreateTransferUseCase
         catch (DuplicateIdempotencyKeyException)
         {
             existingTransfer =
-                await _transferRepository.GetByIdempotencyKeyAsync(
-                    idempotencyKey,
-                    cancellationToken);
+                await _transferRepository
+                    .GetByIdempotencyKeyAsync(
+                        idempotencyKey,
+                        cancellationToken);
 
             if (existingTransfer is null)
             {

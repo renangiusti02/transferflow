@@ -25,6 +25,13 @@ public sealed class EfUnitOfWork : IUnitOfWork
             return await _dbContext.SaveChangesAsync(
                 cancellationToken);
         }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            _dbContext.ChangeTracker.Clear();
+
+            throw new ConcurrencyConflictException(
+                exception);
+        }
         catch (DbUpdateException exception)
             when (
                 exception.InnerException is PostgresException postgresException &&

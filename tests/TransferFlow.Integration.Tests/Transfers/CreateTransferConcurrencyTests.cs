@@ -7,7 +7,7 @@ using TransferFlow.Infrastructure.Persistence.Repositories;
 using TransferFlow.Integration.Tests.Infrastructure;
 using Xunit;
 
-namespace TransferFlow.IntegrationTests.Transfers;
+namespace TransferFlow.Integration.Tests.Transfers;
 
 public sealed class CreateTransferConcurrencyTests
 {
@@ -94,6 +94,35 @@ public sealed class CreateTransferConcurrencyTests
             cancellationToken);
     }
 
+    private async Task<(
+        Guid SourceWalletId,
+        Guid FirstDestinationWalletId,
+        Guid SecondDestinationWalletId)>
+        CreateThreeWalletsAsync(
+            CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = CreateDbContext();
+
+        var sourceWallet = new Wallet();
+        sourceWallet.Credit(100m);
+
+        var firstDestinationWallet = new Wallet();
+        var secondDestinationWallet = new Wallet();
+
+        dbContext.Wallets.AddRange(
+            sourceWallet,
+            firstDestinationWallet,
+            secondDestinationWallet);
+
+        await dbContext.SaveChangesAsync(
+            cancellationToken);
+
+        return (
+            sourceWallet.Id,
+            firstDestinationWallet.Id,
+            secondDestinationWallet.Id);
+    }
+
     private async Task CleanupAsync(
         Guid sourceWalletId,
         Guid destinationWalletId,
@@ -112,6 +141,35 @@ public sealed class CreateTransferConcurrencyTests
             .Where(wallet =>
                 wallet.Id == sourceWalletId ||
                 wallet.Id == destinationWalletId)
+            .ToListAsync();
+
+        dbContext.Wallets.RemoveRange(wallets);
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task CleanupAsync(
+        Guid sourceWalletId,
+        Guid firstDestinationWalletId,
+        Guid secondDestinationWalletId,
+        string firstIdempotencyKey,
+        string secondIdempotencyKey)
+    {
+        await using var dbContext = CreateDbContext();
+
+        var transfers = await dbContext.Transfers
+            .Where(transfer =>
+                transfer.IdempotencyKey == firstIdempotencyKey ||
+                transfer.IdempotencyKey == secondIdempotencyKey)
+            .ToListAsync();
+
+        dbContext.Transfers.RemoveRange(transfers);
+
+        var wallets = await dbContext.Wallets
+            .Where(wallet =>
+                wallet.Id == sourceWalletId ||
+                wallet.Id == firstDestinationWalletId ||
+                wallet.Id == secondDestinationWalletId)
             .ToListAsync();
 
         dbContext.Wallets.RemoveRange(wallets);
@@ -349,6 +407,294 @@ public sealed class CreateTransferConcurrencyTests
                 sourceWalletId,
                 destinationWalletId,
                 idempotencyKey);
+        }
+    }
+
+    [Fact]
+    public async Task Create_Transfer_With_Concurrent_Requests_And_Different_Keys_Should_Not_Overspend_Source_Wallet()
+    {
+        var (
+            sourceWalletId,
+            firstDestinationWalletId,
+            secondDestinationWalletId) =
+            await CreateThreeWalletsAsync();
+
+        const decimal amount = 80m;
+
+        var firstIdempotencyKey =
+            $"overspending-a-{Guid.NewGuid():N}";
+
+        var secondIdempotencyKey =
+            $"overspending-b-{Guid.NewGuid():N}";
+
+        try
+        {
+            var barrier =
+            new AsyncBarrier(2);
+
+            using var cancellationTokenSource =
+                new CancellationTokenSource(
+                    TimeSpan.FromSeconds(15));
+
+            var firstTask = ExecuteTransferAsync(
+                sourceWalletId,
+                firstDestinationWalletId,
+                amount,
+                firstIdempotencyKey,
+                barrier,
+                cancellationTokenSource.Token);
+
+            var secondTask = ExecuteTransferAsync(
+                sourceWalletId,
+                secondDestinationWalletId,
+                amount,
+                secondIdempotencyKey,
+                barrier,
+                cancellationTokenSource.Token);
+
+            TransferResponse? firstResponse = null;
+            TransferResponse? secondResponse = null;
+
+            Exception? firstException = null;
+            Exception? secondException = null;
+
+            try
+            {
+                firstResponse = await firstTask;
+            }
+            catch (Exception exception)
+            {
+                firstException = exception;
+            }
+
+            try
+            {
+                secondResponse = await secondTask;
+            }
+            catch (Exception exception)
+            {
+                secondException = exception;
+            }
+
+            var responses = new[]
+            {
+            firstResponse,
+            secondResponse
+        }
+            .Where(response => response is not null)
+            .ToList();
+
+            var exceptions = new[]
+            {
+            firstException,
+            secondException
+        }
+            .Where(exception => exception is not null)
+            .ToList();
+
+            var successfulResponse =
+                Assert.Single(responses);
+
+            var failedException =
+                Assert.Single(exceptions);
+
+            var invalidOperationException =
+                Assert.IsType<InvalidOperationException>(
+                    failedException);
+
+            Assert.Equal(
+                "Insufficient funds.",
+                invalidOperationException.Message);
+
+            await using var verificationDbContext =
+                CreateDbContext();
+
+            var sourceWallet =
+                await verificationDbContext.Wallets
+                    .AsNoTracking()
+                    .SingleAsync(
+                        wallet =>
+                            wallet.Id == sourceWalletId);
+
+            var firstDestinationWallet =
+                await verificationDbContext.Wallets
+                    .AsNoTracking()
+                    .SingleAsync(
+                        wallet =>
+                            wallet.Id == firstDestinationWalletId);
+
+            var secondDestinationWallet =
+                await verificationDbContext.Wallets
+                    .AsNoTracking()
+                    .SingleAsync(
+                        wallet =>
+                            wallet.Id == secondDestinationWalletId);
+
+            var totalTransferred =
+                firstDestinationWallet.Balance +
+                secondDestinationWallet.Balance;
+
+            var transfers = await verificationDbContext.Transfers
+                .AsNoTracking()
+                .Where(
+                    transfer =>
+                        transfer.IdempotencyKey ==
+                        firstIdempotencyKey ||
+                        transfer.IdempotencyKey ==
+                        secondIdempotencyKey)
+                .ToListAsync();
+
+            var persistedTransfer =
+                Assert.Single(transfers);
+
+            Assert.NotNull(successfulResponse);
+
+            Assert.Equal(
+                successfulResponse.Id,
+                persistedTransfer.Id);
+
+            Assert.Equal(
+                amount,
+                persistedTransfer.Amount);
+
+            Assert.True(
+                firstDestinationWallet.Balance == amount &&
+                secondDestinationWallet.Balance == 0m
+                ||
+                firstDestinationWallet.Balance == 0m &&
+                secondDestinationWallet.Balance == amount);
+
+            Assert.Equal(
+                80m,
+                totalTransferred);
+
+            Assert.Equal(
+                20m,
+                sourceWallet.Balance);
+
+            Assert.Equal(
+                100m,
+                sourceWallet.Balance +
+                totalTransferred);
+        }
+        finally
+        {
+            await CleanupAsync(
+                sourceWalletId,
+                firstDestinationWalletId,
+                secondDestinationWalletId,
+                firstIdempotencyKey,
+                secondIdempotencyKey);
+        }
+    }
+
+    [Fact]
+    public async Task Create_Transfer_With_Concurrent_Requests_And_Different_Keys_Should_Both_Succeed_When_Balance_Is_Sufficient()
+    {
+        var (
+            sourceWalletId,
+            firstDestinationWalletId,
+            secondDestinationWalletId) =
+            await CreateThreeWalletsAsync();
+
+        const decimal amount = 30m;
+
+        var firstIdempotencyKey =
+            $"concurrent-valid-a-{Guid.NewGuid():N}";
+
+        var secondIdempotencyKey =
+            $"concurrent-valid-b-{Guid.NewGuid():N}";
+
+        try
+        {
+            var barrier =
+            new AsyncBarrier(2);
+
+            using var cancellationTokenSource =
+                new CancellationTokenSource(
+                    TimeSpan.FromSeconds(15));
+
+            var firstTask = ExecuteTransferAsync(
+                sourceWalletId,
+                firstDestinationWalletId,
+                amount,
+                firstIdempotencyKey,
+                barrier,
+                cancellationTokenSource.Token);
+
+            var secondTask = ExecuteTransferAsync(
+                sourceWalletId,
+                secondDestinationWalletId,
+                amount,
+                secondIdempotencyKey,
+                barrier,
+                cancellationTokenSource.Token);
+
+            var responses = await Task.WhenAll(
+                firstTask,
+                secondTask);
+
+            await using var verificationDbContext =
+                CreateDbContext();
+
+            var sourceWallet =
+                await verificationDbContext.Wallets
+                    .AsNoTracking()
+                    .SingleAsync(
+                        wallet =>
+                            wallet.Id == sourceWalletId);
+
+            var firstDestinationWallet =
+                await verificationDbContext.Wallets
+                    .AsNoTracking()
+                    .SingleAsync(
+                        wallet =>
+                            wallet.Id == firstDestinationWalletId);
+
+            var secondDestinationWallet =
+                await verificationDbContext.Wallets
+                    .AsNoTracking()
+                    .SingleAsync(
+                        wallet =>
+                            wallet.Id == secondDestinationWalletId);
+
+            var transfers =
+                await verificationDbContext.Transfers
+                    .AsNoTracking()
+                    .Where(transfer =>
+                        transfer.IdempotencyKey == firstIdempotencyKey ||
+                        transfer.IdempotencyKey == secondIdempotencyKey)
+                    .ToListAsync();
+
+            Assert.Equal(2, responses.Length);
+            Assert.Equal(2, transfers.Count);
+
+            Assert.Equal(
+                40m,
+                sourceWallet.Balance);
+
+            Assert.Equal(
+                30m,
+                firstDestinationWallet.Balance);
+
+            Assert.Equal(
+                30m,
+                secondDestinationWallet.Balance);
+
+            Assert.Equal(
+                100m,
+                sourceWallet.Balance +
+                firstDestinationWallet.Balance +
+                secondDestinationWallet.Balance);
+        }
+        finally
+        {
+            await CleanupAsync(
+                sourceWalletId,
+                firstDestinationWalletId,
+                secondDestinationWalletId,
+                firstIdempotencyKey,
+                secondIdempotencyKey);
         }
     }
 }

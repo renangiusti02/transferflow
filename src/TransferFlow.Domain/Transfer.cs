@@ -4,13 +4,9 @@ public class Transfer
 {
     public Guid Id { get; private set; }
     public Guid SourceWalletId { get; private set; }
-
     public Guid DestinationWalletId { get; private set; }
-
     public decimal Amount { get; private set; }
-
     public DateTimeOffset CreatedAtUtc { get; private set; }
-
     public string IdempotencyKey { get; private set; } = null!;
 
     private Transfer()

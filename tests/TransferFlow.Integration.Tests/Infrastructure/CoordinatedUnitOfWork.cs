@@ -6,6 +6,7 @@ internal sealed class CoordinatedUnitOfWork : IUnitOfWork
 {
     private readonly IUnitOfWork _inner;
     private readonly AsyncBarrier _barrier;
+    private int _hasCoordinated;
 
     public CoordinatedUnitOfWork(
         IUnitOfWork inner,
@@ -18,7 +19,13 @@ internal sealed class CoordinatedUnitOfWork : IUnitOfWork
     public async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)
     {
-        await _barrier.SignalAndWaitAsync(cancellationToken);
+        if (Interlocked.Exchange(
+            ref _hasCoordinated,
+            1) == 0)
+        {
+            await _barrier.SignalAndWaitAsync(
+                cancellationToken);
+        }
 
         return await _inner.SaveChangesAsync(
             cancellationToken);

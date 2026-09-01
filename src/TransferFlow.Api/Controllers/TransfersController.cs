@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TransferFlow.Api.Contracts.Transfers;
+using TransferFlow.Application.Common;
 using TransferFlow.Application.Transfers;
 
 namespace TransferFlow.Api.Controllers;
@@ -24,11 +25,16 @@ public sealed class TransfersController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var transfer = await _getTransferByIdUseCase.ExecuteAsync(id, cancellationToken);
+        var transfer = 
+            await _getTransferByIdUseCase.ExecuteAsync(
+                id, 
+                cancellationToken);
+
         if (transfer is null)
         {
             return NotFound();
         }
+
         return Ok(transfer);
     }
 
@@ -40,13 +46,13 @@ public sealed class TransfersController : ControllerBase
     {
         try
         {
-
             var transfer = await _createTransferUseCase.ExecuteAsync(
                 request.SourceWalletId,
                 request.DestinationWalletId,
                 request.Amount,
                 idempotencyKey,
                 cancellationToken);
+
             return CreatedAtAction(
                 nameof(GetTransferById),
                 new { id = transfer.Id },
@@ -59,6 +65,10 @@ public sealed class TransfersController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
