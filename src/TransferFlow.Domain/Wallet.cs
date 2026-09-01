@@ -4,6 +4,7 @@ public class Wallet
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public decimal Balance { get; private set; }
+    public uint Version { get; private set; }
 
     public void Credit(decimal amount)
     {

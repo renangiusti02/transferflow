@@ -27,5 +27,8 @@ public sealed class WalletConfiguration : IEntityTypeConfiguration<Wallet>
             .HasColumnName("balance")
             .HasPrecision(18, 2)
             .IsRequired();
+
+        builder.Property(wallet => wallet.Version)
+            .IsRowVersion();
     }
 }
