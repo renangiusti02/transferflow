@@ -430,7 +430,7 @@ public sealed class CreateTransferConcurrencyTests
         try
         {
             var barrier =
-            new AsyncBarrier(2);
+                new AsyncBarrier(2);
 
             using var cancellationTokenSource =
                 new CancellationTokenSource(
