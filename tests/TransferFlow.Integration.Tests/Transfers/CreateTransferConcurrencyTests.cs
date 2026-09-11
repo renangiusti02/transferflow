@@ -1,7 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using TransferFlow.Application.Messaging.Events;
 using TransferFlow.Application.Transfers;
 using TransferFlow.Domain;
+using TransferFlow.Infrastructure.Messaging.Outbox;
 using TransferFlow.Infrastructure.Persistence;
 using TransferFlow.Infrastructure.Persistence.Repositories;
 using TransferFlow.Integration.Tests.Infrastructure;
@@ -9,6 +12,7 @@ using Xunit;
 
 namespace TransferFlow.Integration.Tests.Transfers;
 
+[Collection("PostgreSQL integration tests")]
 public sealed class CreateTransferConcurrencyTests
 {
     private readonly string _connectionString;
@@ -80,11 +84,15 @@ public sealed class CreateTransferConcurrencyTests
                 unitOfWork,
                 barrier);
 
+        var outbox =
+            new EfOutbox(dbContext);
+
         var useCase =
             new CreateTransferUseCase(
                 walletRepository,
                 transferRepository,
-                coordinatedUnitOfWork);
+                coordinatedUnitOfWork,
+                outbox);
 
         return await useCase.ExecuteAsync(
             sourceWalletId,
@@ -123,6 +131,34 @@ public sealed class CreateTransferConcurrencyTests
             secondDestinationWallet.Id);
     }
 
+    private async Task CleanupOutboxMessagesAsync(
+        TransferFlowDbContext dbContext,
+        IEnumerable<Guid> transferIds)
+    {
+        var ids = transferIds.ToHashSet();
+
+        var messages = await dbContext
+            .Set<OutboxMessage>()
+            .Where(message =>
+                message.Type == nameof(TransferCompleted))
+            .ToListAsync();
+
+        var messagesToRemove = messages
+            .Where(message =>
+            {
+                var integrationEvent =
+                    JsonSerializer.Deserialize<TransferCompleted>(
+                        message.Payload);
+
+                return integrationEvent is not null &&
+                    ids.Contains(integrationEvent.TransferId);
+            })
+            .ToList();
+
+        dbContext.Set<OutboxMessage>()
+            .RemoveRange(messagesToRemove);
+    }
+
     private async Task CleanupAsync(
         Guid sourceWalletId,
         Guid destinationWalletId,
@@ -134,6 +170,10 @@ public sealed class CreateTransferConcurrencyTests
             .Where(transfer =>
                 transfer.IdempotencyKey == idempotencyKey)
             .ToListAsync();
+
+        await CleanupOutboxMessagesAsync(
+            dbContext,
+            transfers.Select(transfer => transfer.Id));
 
         dbContext.Transfers.RemoveRange(transfers);
 
@@ -162,6 +202,10 @@ public sealed class CreateTransferConcurrencyTests
                 transfer.IdempotencyKey == firstIdempotencyKey ||
                 transfer.IdempotencyKey == secondIdempotencyKey)
             .ToListAsync();
+
+        await CleanupOutboxMessagesAsync(
+            dbContext,
+            transfers.Select(transfer => transfer.Id));
 
         dbContext.Transfers.RemoveRange(transfers);
 

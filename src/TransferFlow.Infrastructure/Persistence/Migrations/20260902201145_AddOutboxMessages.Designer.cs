@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TransferFlow.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using TransferFlow.Infrastructure.Persistence;
 namespace TransferFlow.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(TransferFlowDbContext))]
-    partial class TransferFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902201145_AddOutboxMessages")]
+    partial class AddOutboxMessages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -119,9 +122,6 @@ namespace TransferFlow.Infrastructure.Persistence.Migrations
                         .HasColumnName("type");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("OccurredAtUtc")
-                        .HasFilter("\"processed_at_utc\" IS NULL");
 
                     b.ToTable("outbox_messages", (string)null);
                 });

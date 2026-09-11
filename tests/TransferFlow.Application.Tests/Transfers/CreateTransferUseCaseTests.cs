@@ -1,4 +1,5 @@
-﻿using TransferFlow.Application.Tests.Fakes;
+﻿using TransferFlow.Application.Messaging.Events;
+using TransferFlow.Application.Tests.Fakes;
 using TransferFlow.Application.Transfers;
 using TransferFlow.Domain;
 using Xunit;
@@ -10,6 +11,7 @@ public class CreateTransferUseCaseTests
     private readonly FakeWalletRepository _fakeWalletRepository;
     private readonly FakeTransferRepository _fakeTransferRepository;
     private readonly FakeUnitOfWork _fakeUnitOfWork;
+    private readonly FakeOutbox _fakeOutbox;
     private readonly CreateTransferUseCase _sut;
     private readonly Wallet _sourceWallet;
     private readonly Wallet _destinationWallet;
@@ -19,6 +21,7 @@ public class CreateTransferUseCaseTests
     {
         _fakeWalletRepository = new FakeWalletRepository();
         _fakeTransferRepository = new FakeTransferRepository();
+        _fakeOutbox = new FakeOutbox();
         _fakeUnitOfWork = new FakeUnitOfWork();
 
         _sourceWallet = new Wallet();
@@ -33,7 +36,8 @@ public class CreateTransferUseCaseTests
         _sut = new CreateTransferUseCase(
             _fakeWalletRepository,
             _fakeTransferRepository,
-            _fakeUnitOfWork);
+            _fakeUnitOfWork,
+            _fakeOutbox);
     }
     [Fact]
     public async Task Transfer_Should_Throw_When_Source_Wallet_Does_Not_Exist()
@@ -44,6 +48,7 @@ public class CreateTransferUseCaseTests
             _sut.ExecuteAsync(invalidSourceWalletId, _destinationWallet.Id, 30m, _validIdempotencyKey)
         );
         Assert.Equal(0, _fakeUnitOfWork.SaveChangesCallCount);
+        Assert.Empty(_fakeOutbox.Messages);
         Assert.Empty(_fakeTransferRepository.Transfers);
     }
 
@@ -57,6 +62,7 @@ public class CreateTransferUseCaseTests
             _sut.ExecuteAsync(_sourceWallet.Id, invalidDestinationWalletId, 30m, _validIdempotencyKey)
         );
         Assert.Equal(0, _fakeUnitOfWork.SaveChangesCallCount);
+        Assert.Empty(_fakeOutbox.Messages);
         Assert.Empty(_fakeTransferRepository.Transfers);
         Assert.Equal(sourceBalanceBefore, _sourceWallet.Balance);
     }
@@ -74,6 +80,7 @@ public class CreateTransferUseCaseTests
         Assert.Equal(sourceBalanceBefore, _sourceWallet.Balance);
         Assert.Equal(destinationBalanceBefore, _destinationWallet.Balance);
         Assert.Equal(0, _fakeUnitOfWork.SaveChangesCallCount);
+        Assert.Empty(_fakeOutbox.Messages);
         Assert.Empty(_fakeTransferRepository.Transfers);
     }
 
@@ -98,6 +105,29 @@ public class CreateTransferUseCaseTests
         Assert.Equal(_sourceWallet.Id, response.SourceWalletId);
         Assert.Equal(_destinationWallet.Id, response.DestinationWalletId);
         Assert.Equal(amount, response.Amount);
+
+        var integrationEvent =
+            Assert.Single(_fakeOutbox.Messages);
+
+        var transferCompleted =
+            Assert.IsType<TransferCompleted>(
+                integrationEvent);
+
+        Assert.Equal(
+            response.Id,
+            transferCompleted.TransferId);
+        Assert.Equal(
+            _sourceWallet.Id,
+            transferCompleted.SourceWalletId);
+        Assert.Equal(
+            _destinationWallet.Id,
+            transferCompleted.DestinationWalletId);
+        Assert.Equal(
+            amount,
+            transferCompleted.Amount);
+        Assert.Equal(
+            transfer.CreatedAtUtc,
+            transferCompleted.OccurredAtUtc);
     }
 
     [Fact]
@@ -125,6 +155,29 @@ public class CreateTransferUseCaseTests
         Assert.Equal(1, _fakeUnitOfWork.SaveChangesCallCount);
         Assert.Equal(firstResponse.Id, transfer.Id);
         Assert.Equal(secondResponse.Id, transfer.Id);
+
+        var integrationEvent =
+            Assert.Single(_fakeOutbox.Messages);
+
+        var transferCompleted =
+            Assert.IsType<TransferCompleted>(
+                integrationEvent);
+
+        Assert.Equal(
+            transfer.Id,
+            transferCompleted.TransferId);
+        Assert.Equal(
+            _sourceWallet.Id,
+            transferCompleted.SourceWalletId);
+        Assert.Equal(
+            _destinationWallet.Id,
+            transferCompleted.DestinationWalletId);
+        Assert.Equal(
+            amount,
+            transferCompleted.Amount);
+        Assert.Equal(
+            transfer.CreatedAtUtc,
+            transferCompleted.OccurredAtUtc);
     }
 
     [Fact]
@@ -149,6 +202,7 @@ public class CreateTransferUseCaseTests
                 _validIdempotencyKey)
         );
         Assert.Single(_fakeTransferRepository.Transfers);
+        Assert.Single(_fakeOutbox.Messages);
         Assert.Equal(sourceBalanceBefore - 30m, _sourceWallet.Balance);
         Assert.Equal(destinationBalanceBefore + 30m, _destinationWallet.Balance);
         Assert.Equal(1, _fakeUnitOfWork.SaveChangesCallCount);
