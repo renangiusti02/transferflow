@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using TransferFlow.Application.Common;
+using TransferFlow.Application.Messaging;
 using TransferFlow.Application.Transfers;
 using TransferFlow.Application.Wallets;
+using TransferFlow.Infrastructure.Messaging.Outbox;
 using TransferFlow.Infrastructure.Persistence;
 using TransferFlow.Infrastructure.Persistence.Repositories;
 
@@ -14,6 +16,8 @@ var connectionString =
 
 builder.Services.AddDbContext<TransferFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<IOutbox, EfOutbox>();
 
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 

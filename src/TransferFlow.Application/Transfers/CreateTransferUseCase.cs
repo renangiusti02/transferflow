@@ -1,4 +1,6 @@
 ﻿using TransferFlow.Application.Common;
+using TransferFlow.Application.Messaging;
+using TransferFlow.Application.Messaging.Events;
 using TransferFlow.Application.Wallets;
 using TransferFlow.Domain;
 
@@ -9,24 +11,27 @@ public sealed class CreateTransferUseCase
     private readonly IWalletRepository _walletRepository;
     private readonly ITransferRepository _transferRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IOutbox _outbox;
     private const int MaxConcurrencyAttempts = 3;
 
     public CreateTransferUseCase(
         IWalletRepository walletRepository,
         ITransferRepository transferRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IOutbox outbox)
     {
         _walletRepository = walletRepository;
         _transferRepository = transferRepository;
         _unitOfWork = unitOfWork;
+        _outbox = outbox;
     }
 
     public async Task<TransferResponse> ExecuteAsync(
-    Guid sourceWalletId,
-    Guid destinationWalletId,
-    decimal amount,
-    string idempotencyKey,
-    CancellationToken cancellationToken = default)
+        Guid sourceWalletId,
+        Guid destinationWalletId,
+        decimal amount,
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
     {
         for (var attempt = 1;
              attempt < MaxConcurrencyAttempts;
@@ -100,6 +105,14 @@ public sealed class CreateTransferUseCase
         destinationWallet.Credit(amount);
 
         _transferRepository.Add(transfer);
+
+        _outbox.Add(
+            new TransferCompleted(
+                transfer.Id,
+                transfer.SourceWalletId,
+                transfer.DestinationWalletId,
+                transfer.Amount,
+                transfer.CreatedAtUtc));
 
         try
         {

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TransferFlow.Domain;
+using TransferFlow.Infrastructure.Messaging.Outbox;
 using TransferFlow.Infrastructure.Persistence.Configurations;
 
 namespace TransferFlow.Infrastructure.Persistence;
@@ -23,6 +24,9 @@ public sealed class TransferFlowDbContext : DbContext
 
         modelBuilder.ApplyConfiguration(
             new TransferConfiguration());
+
+        modelBuilder.ApplyConfiguration(
+            new OutboxMessageConfiguration());
 
         base.OnModelCreating(modelBuilder);
     }
