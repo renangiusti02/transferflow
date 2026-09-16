@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/docker/" />
+  <Folder Name="/docker/localstack/">
+    <File Path="docker/localstack/init-sqs.sh" />
+  </Folder>
   <Folder Name="/Itens de Solução/">
     <File Path=".editorconfig" />
     <File Path=".env" />

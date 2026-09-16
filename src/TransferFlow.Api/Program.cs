@@ -14,6 +14,9 @@ var connectionString =
     ?? throw new InvalidOperationException(
         "Connection string 'Database' was not found.");
 
+builder.Services.AddOutboxProcessing(
+    builder.Configuration);
+
 builder.Services.AddDbContext<TransferFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
 

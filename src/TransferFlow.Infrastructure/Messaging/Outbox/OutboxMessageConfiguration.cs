@@ -25,6 +25,10 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
             .HasColumnType("jsonb")
             .IsRequired();
 
+        builder.Property(outboxMessage => outboxMessage.CorrelationId)
+            .HasColumnName("correlation_id")
+            .IsRequired();
+
         builder.Property(outboxMessage => outboxMessage.OccurredAtUtc)
             .HasColumnName("occurred_at_utc")
             .HasColumnType("timestamp with time zone")

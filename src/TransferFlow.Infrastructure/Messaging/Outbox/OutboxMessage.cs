@@ -5,6 +5,7 @@ internal sealed class OutboxMessage
     public Guid Id { get; private set; }
     public string Type { get; private set; } = null!;
     public string Payload { get; private set; } = null!;
+    public Guid CorrelationId { get; private set; }
     public DateTimeOffset OccurredAtUtc { get; private set; }
     public DateTimeOffset? ProcessedAtUtc { get; private set; }
 
@@ -14,6 +15,7 @@ internal sealed class OutboxMessage
 
     public OutboxMessage(string type,
                          string payload,
+                         Guid correlationId,
                          DateTimeOffset occurredAtUtc)
     {
         if (string.IsNullOrWhiteSpace(type))
@@ -33,6 +35,7 @@ internal sealed class OutboxMessage
         Id = Guid.NewGuid();
         Type = type;
         Payload = payload;
+        CorrelationId = correlationId;
         OccurredAtUtc = occurredAtUtc;
     }
 

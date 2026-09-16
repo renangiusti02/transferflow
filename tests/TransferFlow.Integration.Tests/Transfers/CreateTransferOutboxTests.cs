@@ -253,6 +253,10 @@ public sealed class CreateTransferOutboxTests
 
             Assert.Null(
                 outboxMessage.ProcessedAtUtc);
+
+            Assert.Equal(
+                transfer.Id,
+                outboxMessage.CorrelationId);
         }
         finally
         {
@@ -275,6 +279,7 @@ public sealed class CreateTransferOutboxTests
             var outboxMessage = new OutboxMessage(
                 typeof(T).Name,
                 "{ invalid json",
+                Guid.NewGuid(),
                 message.OccurredAtUtc);
 
             MessageId = outboxMessage.Id;

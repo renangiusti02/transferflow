@@ -2,5 +2,6 @@
 
 public interface IIntegrationEvent
 {
+    Guid CorrelationId { get; }
     DateTimeOffset OccurredAtUtc { get; }
 }
