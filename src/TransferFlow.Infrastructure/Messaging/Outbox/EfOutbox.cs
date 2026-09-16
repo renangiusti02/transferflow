@@ -18,6 +18,7 @@ public sealed class EfOutbox(TransferFlowDbContext dbContext) : IOutbox
         var outboxMessage = new OutboxMessage(
             type,
             payload,
+            message.CorrelationId,
             message.OccurredAtUtc);
 
         _dbContext.Set<OutboxMessage>()

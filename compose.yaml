@@ -20,5 +20,20 @@ services:
       timeout: 5s
       retries: 5
 
+  localstack:
+    image: localstack/localstack:2026.08.2
+    container_name: transferflow-localstack
+
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
+      SERVICES: sqs
+      DEBUG: 0
+
+    ports:
+      - "127.0.0.1:4566:4566"
+
+    volumes:
+      - ./docker/localstack/init-sqs.sh:/etc/localstack/init/ready.d/init-sqs.sh
+
 volumes:
   postgres_data:

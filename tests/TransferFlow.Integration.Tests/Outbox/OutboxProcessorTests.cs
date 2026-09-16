@@ -105,6 +105,7 @@ public sealed class OutboxProcessorTests
         var outboxMessage = new OutboxMessage(
             "TransferCompleted",
             JsonSerializer.Serialize(transferCompletedEvent),
+            transferId,
             DateTimeOffset.UtcNow);
 
         try
@@ -156,6 +157,7 @@ public sealed class OutboxProcessorTests
         var outboxMessage = new OutboxMessage(
             "TransferCompleted",
             JsonSerializer.Serialize(transferCompletedEvent),
+            transferId,
             DateTimeOffset.UtcNow);
 
         try

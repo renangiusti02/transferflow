@@ -10,14 +10,14 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TransferFlow.Application\TransferFlow.Application.csproj" />
+	  <ProjectReference Include="..\..\src\TransferFlow.Application\TransferFlow.Application.csproj" />
     <ProjectReference Include="..\..\src\TransferFlow.Domain\TransferFlow.Domain.csproj" />
     <ProjectReference Include="..\..\src\TransferFlow.Infrastructure\TransferFlow.Infrastructure.csproj" />
   </ItemGroup>
