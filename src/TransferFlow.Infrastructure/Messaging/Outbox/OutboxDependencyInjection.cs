@@ -68,6 +68,12 @@ public static class OutboxDependencyInjection
         services
             .AddHostedService<OutboxBackgroundService>();
 
+        services
+            .AddScoped<SqsMessageProcessor>();
+
+        services
+            .AddHostedService<SqsConsumerBackgroundService>();
+
         return services;
     }
 }
