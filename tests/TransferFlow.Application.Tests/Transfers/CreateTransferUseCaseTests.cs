@@ -1,4 +1,6 @@
-﻿using TransferFlow.Application.Messaging.Events;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using TransferFlow.Application.Messaging.Events;
+using TransferFlow.Application.Observability;
 using TransferFlow.Application.Tests.Fakes;
 using TransferFlow.Application.Transfers;
 using TransferFlow.Domain;
@@ -37,8 +39,19 @@ public class CreateTransferUseCaseTests
             _fakeWalletRepository,
             _fakeTransferRepository,
             _fakeUnitOfWork,
-            _fakeOutbox);
+            _fakeOutbox,
+            new StubCorrelationContext(Guid.NewGuid()),
+            NullLogger<CreateTransferUseCase>.Instance);
     }
+
+    internal sealed class StubCorrelationContext(
+        Guid correlationId)
+        : ICorrelationContext
+    {
+        public Guid CorrelationId { get; } =
+            correlationId;
+    }
+
     [Fact]
     public async Task Transfer_Should_Throw_When_Source_Wallet_Does_Not_Exist()
     {

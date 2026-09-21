@@ -47,7 +47,8 @@ public sealed class SqsMessageProcessorTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 100m,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+            Guid.NewGuid());
 
         var message = new Message
         {
@@ -147,7 +148,8 @@ public sealed class SqsMessageProcessorTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 100m,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                Guid.NewGuid());
 
         var message = new Message
         {
@@ -260,7 +262,8 @@ public sealed class SqsMessageProcessorTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 100m,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                Guid.NewGuid());
 
         var message = new Message
         {

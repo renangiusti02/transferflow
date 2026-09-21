@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using System.Text.Json;
 using TransferFlow.Application.Messaging;
@@ -92,7 +93,7 @@ public sealed class OutboxProcessorTests
         await using var dbContext = CreateDbContext();
 
         var publisher = new FakeOutboxPublisher();
-        var outboxProcessor = new OutboxProcessor(dbContext, publisher);
+        var outboxProcessor = new OutboxProcessor(dbContext, publisher, NullLogger<OutboxProcessor>.Instance);
 
         var transferId = Guid.NewGuid();
         var transferCompletedEvent = new TransferCompleted(
@@ -100,7 +101,8 @@ public sealed class OutboxProcessorTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             100m,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            Guid.NewGuid());
 
         var outboxMessage = new OutboxMessage(
             "TransferCompleted",
@@ -144,7 +146,7 @@ public sealed class OutboxProcessorTests
         await using var dbContext = CreateDbContext();
 
         var publisher = new FakeOutboxPublisher(shouldFail: true);
-        var outboxProcessor = new OutboxProcessor(dbContext, publisher);
+        var outboxProcessor = new OutboxProcessor(dbContext, publisher, NullLogger<OutboxProcessor>.Instance);
 
         var transferId = Guid.NewGuid();
         var transferCompletedEvent = new TransferCompleted(
@@ -152,7 +154,8 @@ public sealed class OutboxProcessorTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             100m,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            Guid.NewGuid());
 
         var outboxMessage = new OutboxMessage(
             "TransferCompleted",

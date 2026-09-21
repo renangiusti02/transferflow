@@ -4,6 +4,14 @@
 
 GET {{TransferFlow.Api_HostAddress}}/health
 
+### Health - Live
+
+GET {{TransferFlow.Api_HostAddress}}/health/live
+
+### Health - Ready
+
+GET {{TransferFlow.Api_HostAddress}}/health/ready
+
 ### Create wallet
 
 POST {{TransferFlow.Api_HostAddress}}/wallets
@@ -17,9 +25,10 @@ GET {{TransferFlow.Api_HostAddress}}/wallets/e787d809-dd8f-4915-b97c-e7d4e94aa70
 POST {{TransferFlow.Api_HostAddress}}/transfers
 Content-Type: application/json
 Idempotency-Key: 7b2b4e5a-1234-4bc3-a81d-8888cf34aa01
+X-Correlation-ID: 11111111-1111-1111-1111-111111111111
 
 {
-  "sourceWalletId": "175b5dc4-8c32-41ab-a13a-cdff6dc08359",
+  "sourceWalletId": "f2ee139a-737b-4726-98d0-3eaebce92a73",
   "destinationWalletId": "e787d809-dd8f-4915-b97c-e7d4e94aa700",
   "amount": 30.00
 }

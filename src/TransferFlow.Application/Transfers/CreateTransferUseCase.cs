@@ -1,30 +1,27 @@
-﻿using TransferFlow.Application.Common;
+﻿using Microsoft.Extensions.Logging;
+using TransferFlow.Application.Common;
 using TransferFlow.Application.Messaging;
 using TransferFlow.Application.Messaging.Events;
+using TransferFlow.Application.Observability;
 using TransferFlow.Application.Wallets;
 using TransferFlow.Domain;
 
 namespace TransferFlow.Application.Transfers;
 
-public sealed class CreateTransferUseCase
+public sealed class CreateTransferUseCase(
+    IWalletRepository walletRepository,
+    ITransferRepository transferRepository,
+    IUnitOfWork unitOfWork,
+    IOutbox outbox,
+    ICorrelationContext correlationContext,
+    ILogger<CreateTransferUseCase> logger)
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly ITransferRepository _transferRepository;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IOutbox _outbox;
+    private readonly IWalletRepository _walletRepository = walletRepository;
+    private readonly ITransferRepository _transferRepository = transferRepository;
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
+    private readonly IOutbox _outbox = outbox;
+    private readonly ICorrelationContext _correlationContext = correlationContext;
     private const int MaxConcurrencyAttempts = 3;
-
-    public CreateTransferUseCase(
-        IWalletRepository walletRepository,
-        ITransferRepository transferRepository,
-        IUnitOfWork unitOfWork,
-        IOutbox outbox)
-    {
-        _walletRepository = walletRepository;
-        _transferRepository = transferRepository;
-        _unitOfWork = unitOfWork;
-        _outbox = outbox;
-    }
 
     public async Task<TransferResponse> ExecuteAsync(
         Guid sourceWalletId,
@@ -112,12 +109,19 @@ public sealed class CreateTransferUseCase
                 transfer.SourceWalletId,
                 transfer.DestinationWalletId,
                 transfer.Amount,
-                transfer.CreatedAtUtc));
+                transfer.CreatedAtUtc,
+                _correlationContext.CorrelationId));
 
         try
         {
             await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
+
+            logger.LogInformation(
+                "Transfer {TransferId} created from wallet {SourceWalletId} to wallet {DestinationWalletId}.",
+                transfer.Id,
+                transfer.SourceWalletId,
+                transfer.DestinationWalletId);
 
             return ToResponse(transfer);
         }
