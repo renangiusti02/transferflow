@@ -15,38 +15,16 @@ using Xunit;
 
 namespace TransferFlow.Integration.Tests.Outbox;
 
-[Collection("PostgreSQL integration tests")]
-public sealed class OutboxProcessorTests
+public sealed class OutboxProcessorTests(
+    PostgreSqlIntegrationTestFixture database) : IClassFixture<PostgreSqlIntegrationTestFixture>
 {
-    private readonly string _connectionString;
-
-    public OutboxProcessorTests()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets<OutboxProcessorTests>()
-            .Build();
-
-        _connectionString =
-            configuration.GetConnectionString("Database")
-            ?? throw new InvalidOperationException(
-                "Connection string 'Database' was not found.");
-    }
-
-    private TransferFlowDbContext CreateDbContext()
-    {
-        var options =
-            new DbContextOptionsBuilder<TransferFlowDbContext>()
-                .UseNpgsql(_connectionString)
-                .Options;
-
-        return new TransferFlowDbContext(options);
-    }
+    private readonly PostgreSqlIntegrationTestFixture _database = database;
 
     private async Task CleanupAsync(
         Guid outboxMessageId)
     {
         await using var dbContext =
-            CreateDbContext();
+            _database.CreateDbContext();
 
         var message =
             await dbContext
@@ -90,7 +68,7 @@ public sealed class OutboxProcessorTests
     [Fact]
     public async Task Outbox_Processor_Process_Pending_Async_Should_Mark_Message_As_Processed_When_Publish_Succeeds()
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var publisher = new FakeOutboxPublisher();
         var outboxProcessor = new OutboxProcessor(dbContext, publisher, NullLogger<OutboxProcessor>.Instance);
@@ -118,7 +96,7 @@ public sealed class OutboxProcessorTests
 
             await outboxProcessor.ProcessPendingAsync(CancellationToken.None);
 
-            await using var verificationDbContext = CreateDbContext();
+            await using var verificationDbContext = _database.CreateDbContext();
 
             var persistedMessage =
                 await verificationDbContext
@@ -143,7 +121,7 @@ public sealed class OutboxProcessorTests
     [Fact]
     public async Task Outbox_Processor_Process_Pending_Async_Should_Not_Mark_Message_As_Processed_When_Publish_Fails()
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var publisher = new FakeOutboxPublisher(shouldFail: true);
         var outboxProcessor = new OutboxProcessor(dbContext, publisher, NullLogger<OutboxProcessor>.Instance);
@@ -171,7 +149,7 @@ public sealed class OutboxProcessorTests
 
             await outboxProcessor.ProcessPendingAsync(CancellationToken.None);
 
-            await using var verificationDbContext = CreateDbContext();
+            await using var verificationDbContext = _database.CreateDbContext();
 
             var persistedMessage =
                 await verificationDbContext

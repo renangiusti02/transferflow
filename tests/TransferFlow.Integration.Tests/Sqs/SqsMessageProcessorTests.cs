@@ -5,35 +5,15 @@ using System.Text.Json;
 using TransferFlow.Application.Messaging.Events;
 using TransferFlow.Infrastructure.Messaging.Sqs;
 using TransferFlow.Infrastructure.Persistence;
+using TransferFlow.Integration.Tests.Infrastructure;
 
 namespace TransferFlow.Integration.Tests.Sqs;
 
 [Collection("PostgreSQL integration tests")]
-public sealed class SqsMessageProcessorTests
+public sealed class SqsMessageProcessorTests(
+    PostgreSqlIntegrationTestFixture database) : IClassFixture<PostgreSqlIntegrationTestFixture>
 {
-    private readonly string _connectionString;
-
-    public SqsMessageProcessorTests()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets<SqsMessageProcessorTests>()
-            .Build();
-
-        _connectionString =
-            configuration.GetConnectionString("Database")
-            ?? throw new InvalidOperationException(
-                "Connection string 'Database' was not found.");
-    }
-
-    private TransferFlowDbContext CreateDbContext()
-    {
-        var options =
-            new DbContextOptionsBuilder<TransferFlowDbContext>()
-                .UseNpgsql(_connectionString)
-                .Options;
-
-        return new TransferFlowDbContext(options);
-    }
+    private readonly PostgreSqlIntegrationTestFixture _database = database;
 
     [Fact]
     public async Task Sqs_Process_Async_Should_Persist_One_Processed_Message_When_Same_Message_Is_Delivered_Twice()
@@ -80,7 +60,7 @@ public sealed class SqsMessageProcessorTests
 
         try
         {
-            await using (var dbContext = CreateDbContext())
+            await using (var dbContext = _database.CreateDbContext())
             {
                 var processor =
                     new SqsMessageProcessor(dbContext);
@@ -100,7 +80,7 @@ public sealed class SqsMessageProcessorTests
                 firstSqsMessageId,
                 message.MessageId);
 
-            await using (var dbContext = CreateDbContext())
+            await using (var dbContext = _database.CreateDbContext())
             {
                 var processor =
                     new SqsMessageProcessor(dbContext);
@@ -111,7 +91,7 @@ public sealed class SqsMessageProcessorTests
             }
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var count =
                 await verificationDbContext
@@ -125,7 +105,7 @@ public sealed class SqsMessageProcessorTests
         finally
         {
             await using var cleanupDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             await cleanupDbContext
                 .Set<ProcessedMessage>()
@@ -184,9 +164,20 @@ public sealed class SqsMessageProcessorTests
 
         try
         {
+            var brokenConfiguration =
+                new ConfigurationBuilder()
+                    .AddUserSecrets<PostgreSqlIntegrationTestFixture>(
+                        optional: true)
+                    .AddEnvironmentVariables()
+                    .Build();
+
             var brokenConnectionString =
-                new Npgsql.NpgsqlConnectionStringBuilder(
-                    _connectionString)
+                brokenConfiguration.GetConnectionString("Database")
+                    ?? throw new InvalidOperationException(
+                        "Connection string 'Database' was not found.");
+
+            var brokenConnectionStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder(
+                    brokenConnectionString)
                 {
                     Port = 1,
                     Timeout = 1
@@ -195,7 +186,7 @@ public sealed class SqsMessageProcessorTests
 
             var brokenOptions =
                 new DbContextOptionsBuilder<TransferFlowDbContext>()
-                    .UseNpgsql(brokenConnectionString)
+                    .UseNpgsql(brokenConnectionStringBuilder)
                     .Options;
 
             await using (var brokenDbContext =
@@ -214,7 +205,7 @@ public sealed class SqsMessageProcessorTests
                 Guid.NewGuid().ToString();
 
             await using (var dbContext =
-                CreateDbContext())
+                _database.CreateDbContext())
             {
                 var processor =
                     new SqsMessageProcessor(dbContext);
@@ -225,7 +216,7 @@ public sealed class SqsMessageProcessorTests
             }
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var count =
                 await verificationDbContext
@@ -239,7 +230,7 @@ public sealed class SqsMessageProcessorTests
         finally
         {
             await using var cleanupDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             await cleanupDbContext
                 .Set<ProcessedMessage>()
@@ -297,7 +288,7 @@ public sealed class SqsMessageProcessorTests
 
         try
         {
-            await using (var dbContext = CreateDbContext())
+            await using (var dbContext = _database.CreateDbContext())
             {
                 var processor =
                     new SqsMessageProcessor(dbContext);
@@ -308,7 +299,7 @@ public sealed class SqsMessageProcessorTests
             }
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var count =
                 await verificationDbContext
@@ -322,7 +313,7 @@ public sealed class SqsMessageProcessorTests
         finally
         {
             await using var cleanupDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             await cleanupDbContext
                 .Set<ProcessedMessage>()
