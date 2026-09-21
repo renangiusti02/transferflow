@@ -10,41 +10,21 @@ using TransferFlow.Domain;
 using TransferFlow.Infrastructure.Messaging.Outbox;
 using TransferFlow.Infrastructure.Persistence;
 using TransferFlow.Infrastructure.Persistence.Repositories;
+using TransferFlow.Integration.Tests.Infrastructure;
 
 namespace TransferFlow.Integration.Tests.Transfers;
 
 [Collection("PostgreSQL integration tests")]
-public sealed class CreateTransferOutboxTests
+public sealed class CreateTransferOutboxTests(
+    PostgreSqlIntegrationTestFixture database) : IClassFixture<PostgreSqlIntegrationTestFixture>
 {
-    private readonly string _connectionString;
-
-    public CreateTransferOutboxTests()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets<CreateTransferOutboxTests>()
-            .Build();
-
-        _connectionString =
-            configuration.GetConnectionString("Database")
-            ?? throw new InvalidOperationException(
-                "Connection string 'Database' was not found.");
-    }
-
-    private TransferFlowDbContext CreateDbContext()
-    {
-        var options =
-            new DbContextOptionsBuilder<TransferFlowDbContext>()
-                .UseNpgsql(_connectionString)
-                .Options;
-
-        return new TransferFlowDbContext(options);
-    }
+    private readonly PostgreSqlIntegrationTestFixture _database = database;
 
     private async Task<(Guid SourceWalletId, Guid DestinationWalletId)>
         CreateWalletsAsync(
             CancellationToken cancellationToken = default)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var sourceWallet = new Wallet();
         sourceWallet.Credit(100m);
@@ -68,7 +48,7 @@ public sealed class CreateTransferOutboxTests
         string idempotencyKey,
         CancellationToken cancellationToken = default)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var walletRepository =
             new WalletRepository(dbContext);
@@ -132,7 +112,7 @@ public sealed class CreateTransferOutboxTests
         Guid destinationWalletId,
         string idempotencyKey)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var transfers = await dbContext.Transfers
             .Where(transfer =>
@@ -189,7 +169,7 @@ public sealed class CreateTransferOutboxTests
                 cancellationTokenSource.Token);
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var sourceWallet =
                 await verificationDbContext.Wallets
@@ -312,7 +292,7 @@ public sealed class CreateTransferOutboxTests
 
         try
         {
-            await using var dbContext = CreateDbContext();
+            await using var dbContext = _database.CreateDbContext();
 
             var walletRepository =
                 new WalletRepository(dbContext);
@@ -343,7 +323,7 @@ public sealed class CreateTransferOutboxTests
                     idempotencyKey));
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var sourceWallet =
                 await verificationDbContext.Wallets

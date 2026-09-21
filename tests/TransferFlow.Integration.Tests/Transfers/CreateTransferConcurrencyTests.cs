@@ -15,37 +15,16 @@ using TransferFlow.Integration.Tests.Infrastructure;
 namespace TransferFlow.Integration.Tests.Transfers;
 
 [Collection("PostgreSQL integration tests")]
-public sealed class CreateTransferConcurrencyTests
+public sealed class CreateTransferConcurrencyTests(
+    PostgreSqlIntegrationTestFixture database) : IClassFixture<PostgreSqlIntegrationTestFixture>
 {
-    private readonly string _connectionString;
-
-    public CreateTransferConcurrencyTests()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets<CreateTransferConcurrencyTests>()
-            .Build();
-
-        _connectionString =
-            configuration.GetConnectionString("Database")
-            ?? throw new InvalidOperationException(
-                "Connection string 'Database' was not found.");
-    }
-
-    private TransferFlowDbContext CreateDbContext()
-    {
-        var options =
-            new DbContextOptionsBuilder<TransferFlowDbContext>()
-                .UseNpgsql(_connectionString)
-                .Options;
-
-        return new TransferFlowDbContext(options);
-    }
+    private readonly PostgreSqlIntegrationTestFixture _database = database;
 
     private async Task<(Guid SourceWalletId, Guid DestinationWalletId)>
         CreateWalletsAsync(
             CancellationToken cancellationToken = default)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var sourceWallet = new Wallet();
         sourceWallet.Credit(100m);
@@ -70,7 +49,7 @@ public sealed class CreateTransferConcurrencyTests
         AsyncBarrier barrier,
         CancellationToken cancellationToken = default)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var walletRepository =
             new WalletRepository(dbContext);
@@ -113,7 +92,7 @@ public sealed class CreateTransferConcurrencyTests
         CreateThreeWalletsAsync(
             CancellationToken cancellationToken = default)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var sourceWallet = new Wallet();
         sourceWallet.Credit(100m);
@@ -168,7 +147,7 @@ public sealed class CreateTransferConcurrencyTests
         Guid destinationWalletId,
         string idempotencyKey)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var transfers = await dbContext.Transfers
             .Where(transfer =>
@@ -199,7 +178,7 @@ public sealed class CreateTransferConcurrencyTests
         string firstIdempotencyKey,
         string secondIdempotencyKey)
     {
-        await using var dbContext = CreateDbContext();
+        await using var dbContext = _database.CreateDbContext();
 
         var transfers = await dbContext.Transfers
             .Where(transfer =>
@@ -273,7 +252,7 @@ public sealed class CreateTransferConcurrencyTests
                 secondTask);
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var sourceWallet =
                 await verificationDbContext.Wallets
@@ -411,7 +390,7 @@ public sealed class CreateTransferConcurrencyTests
                 failedException);
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var sourceWallet =
                 await verificationDbContext.Wallets
@@ -563,7 +542,7 @@ public sealed class CreateTransferConcurrencyTests
                 invalidOperationException.Message);
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var sourceWallet =
                 await verificationDbContext.Wallets
@@ -691,7 +670,7 @@ public sealed class CreateTransferConcurrencyTests
                 secondTask);
 
             await using var verificationDbContext =
-                CreateDbContext();
+                _database.CreateDbContext();
 
             var sourceWallet =
                 await verificationDbContext.Wallets
