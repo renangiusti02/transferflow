@@ -1,15 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 using TransferFlow.Application.Messaging;
 using TransferFlow.Application.Messaging.Events;
+using TransferFlow.Application.Observability;
 using TransferFlow.Application.Transfers;
 using TransferFlow.Domain;
 using TransferFlow.Infrastructure.Messaging.Outbox;
 using TransferFlow.Infrastructure.Persistence;
 using TransferFlow.Infrastructure.Persistence.Repositories;
-using TransferFlow.Integration.Tests.Infrastructure;
-using Xunit;
 
 namespace TransferFlow.Integration.Tests.Transfers;
 
@@ -87,7 +87,9 @@ public sealed class CreateTransferOutboxTests
                 walletRepository,
                 transferRepository,
                 unitOfWork,
-                outbox);
+                outbox,
+                new StubCorrelationContext(Guid.NewGuid()),
+                NullLogger<CreateTransferUseCase>.Instance);
 
         return await useCase.ExecuteAsync(
             sourceWalletId,
@@ -152,6 +154,14 @@ public sealed class CreateTransferOutboxTests
         dbContext.Wallets.RemoveRange(wallets);
 
         await dbContext.SaveChangesAsync();
+    }
+
+    internal sealed class StubCorrelationContext(
+        Guid correlationId)
+        : ICorrelationContext
+    {
+        public Guid CorrelationId { get; } =
+            correlationId;
     }
 
     [Fact]
@@ -254,7 +264,7 @@ public sealed class CreateTransferOutboxTests
             Assert.Null(
                 outboxMessage.ProcessedAtUtc);
 
-            Assert.Equal(
+            Assert.NotEqual(
                 transfer.Id,
                 outboxMessage.CorrelationId);
         }
@@ -321,7 +331,9 @@ public sealed class CreateTransferOutboxTests
                     walletRepository,
                     transferRepository,
                     unitOfWork,
-                    invalidOutbox);
+                    invalidOutbox,
+                    new StubCorrelationContext(Guid.NewGuid()),
+                    NullLogger<CreateTransferUseCase>.Instance);
 
             await Assert.ThrowsAsync<DbUpdateException>(() =>
                 useCase.ExecuteAsync(

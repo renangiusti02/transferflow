@@ -5,8 +5,8 @@ public sealed record TransferCompleted(
     Guid SourceWalletId,
     Guid DestinationWalletId,
     decimal Amount,
-    DateTimeOffset OccurredAtUtc)
+    DateTimeOffset OccurredAtUtc,
+    Guid CorrelationId)
     : IIntegrationEvent
 {
-    public Guid CorrelationId => TransferId;
 }
