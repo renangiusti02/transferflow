@@ -23,6 +23,9 @@ The project is designed as a compact engineering playground for building and dem
 * Liveness and readiness health checks
 * Domain, Application and PostgreSQL integration tests
 * Deterministic concurrency tests using independent `DbContext` instances
+* DynamoDB wallet activity projection derived from `TransferCompleted` events
+* Wallet activity timeline optimized by partition key and temporal sort key
+* Eventually consistent read model that keeps PostgreSQL as the transactional source of truth
 * GitHub Actions CI with a disposable PostgreSQL service
 * OpenAPI support
 
@@ -130,9 +133,35 @@ SqsConsumerBackgroundService
       v
 SqsMessageProcessor
       |
+      +--> DynamoDB
+      |     |
+      |     +--> DEBIT activity for source wallet
+      |     └--> CREDIT activity for destination wallet
+      |
       v
 processed_messages
+      |
+      v
+PostgreSQL
 ```
+
+`TransferCompleted` events are projected into DynamoDB after being consumed from SQS.
+
+Each transfer generates two read-model entries:
+
+```text
+source wallet
+→ Debit
+→ counterparty = destination wallet
+
+destination wallet
+→ Credit
+→ counterparty = source wallet
+```
+
+PostgreSQL remains the transactional source of truth.
+
+DynamoDB contains a derived read model optimized specifically for retrieving recent wallet activity.
 
 Outbox publication and message consumption use at-least-once delivery semantics.
 
@@ -197,6 +226,7 @@ TransferFlow/
 * **Npgsql**
 * **PostgreSQL 18**
 * **Amazon SQS**
+* **Amazon DynamoDB**
 * **LocalStack**
 * **Docker Compose**
 * **xUnit**
@@ -551,6 +581,106 @@ The preliminary existence check improves the common duplicate path, but correctn
 
 This makes repeated deliveries safe without requiring exactly-once delivery from the broker.
 
+## DynamoDB Wallet Activity Projection
+
+TransferFlow uses DynamoDB for one explicit access pattern:
+
+> Retrieve the most recent activities for a specific wallet.
+
+The projection is derived asynchronously from `TransferCompleted` events.
+
+Each activity uses:
+
+```text
+PK = WALLET#{walletId}
+
+SK = ACTIVITY#{occurredAtUtc}#{transferId}
+```
+
+For example:
+
+```text
+PK
+WALLET#f2ee139a-737b-4726-98d0-3eaebce92a73
+
+SK
+ACTIVITY#2026-09-23T12:00:00.0000000Z#51fe5e2f-58c7-4e0d-942b-87b335218876
+```
+
+The partition key groups all activity for one wallet.
+
+The timestamp at the beginning of the sort key keeps activities naturally ordered, while the transfer ID provides a deterministic tie-breaker and stable identity for retries.
+
+The read path uses a DynamoDB Query, not a table scan:
+
+```text
+PK = WALLET#{walletId}
+↓
+ScanIndexForward = false
+↓
+Limit = N
+↓
+most recent activities
+```
+
+### Why DynamoDB does not replace PostgreSQL
+
+The two databases solve different problems.
+
+```text
+PostgreSQL
+→ transactional source of truth
+→ wallet balances
+→ transfers
+→ ACID consistency
+→ concurrency control
+→ Outbox and processed messages
+
+DynamoDB
+→ derived read model
+→ recent wallet activity
+→ modeled around one access pattern
+→ eventually consistent with the transactional state
+```
+
+Wallet existence is still checked against PostgreSQL.
+
+Therefore:
+
+```text
+existing wallet with no activity
+→ 200 []
+
+nonexistent wallet
+→ 404
+```
+
+### Idempotent projection updates
+
+The consumer writes DynamoDB before marking the SQS message as processed in PostgreSQL.
+
+```text
+DynamoDB projection
+↓
+processed_messages
+↓
+SQS acknowledgement
+```
+
+If the DynamoDB write succeeds but the PostgreSQL commit fails, SQS can redeliver the message.
+
+Because the projection key is deterministic, the same event writes the same PK + SK instead of creating another activity.
+
+This makes projection retries convergent.
+
+### Rebuildability
+
+DynamoDB contains derived state rather than authoritative financial state.
+
+Conceptually, the projection can be rebuilt by replaying the corresponding integration events.
+
+This is an intentional eventual-consistency trade-off: transaction correctness remains in PostgreSQL while DynamoDB serves a read-optimized representation.
+
 ## Retries and Dead-Letter Queue
 
 A failed message is not immediately discarded.
@@ -719,6 +849,29 @@ GET /wallets/{id}
 ```
 
 Returns a wallet by ID.
+
+```http
+GET /wallets/{id}/activities?limit=20
+```
+
+Returns the most recent projected activities for a wallet.
+
+`limit` must be between 1 and 100.
+
+Example:
+
+```json
+[
+  {
+    "transferId": "51fe5e2f-58c7-4e0d-942b-87b335218876",
+    "counterpartyWalletId": "e787d809-dd8f-4915-b97c-e7d4e94aa700",
+    "amount": 30.00,
+    "direction": "Debit",
+    "occurredAtUtc": "2026-09-23T12:00:00Z",
+    "correlationId": "11111111-1111-1111-1111-111111111111"
+  }
+]
+```
 
 ### Transfers
 
@@ -914,7 +1067,7 @@ TransferFlow intentionally avoids several abstractions and infrastructure choice
 * no microservice split
 * no exactly-once messaging claim
 * no additional in-process retry library around SQS consumption
-* no LocalStack dependency in CI when the current integration tests do not require a real broker
+* no LocalStack dependency in CI; LocalStack-specific integration tests remain available locally
 * no distributed transaction between PostgreSQL and SQS
 
 The project introduces complexity only when a concrete failure mode or requirement justifies it.
@@ -967,17 +1120,26 @@ LocalStack
 → localhost:4566
 ```
 
-When LocalStack becomes ready, `docker/localstack/init-sqs.sh` automatically creates:
+LocalStack provides the AWS services used by the project during local development:
 
 ```text
-transfer-completed
-        |
-        | maxReceiveCount = 3
-        v
-transfer-completed-dlq
+LocalStack
+├── Amazon SQS
+│   ├── transfer-completed
+│   └── transfer-completed-dlq
+│
+└── Amazon DynamoDB
+    └── wallet-activity
 ```
 
-The main queue is configured with a redrive policy so messages that repeatedly fail processing are eventually moved to the dead-letter queue.
+When LocalStack becomes ready:
+
+* `docker/localstack/init-sqs.sh` creates the main SQS queue and dead-letter queue
+* `docker/localstack/init-dynamodb.sh` creates the `wallet-activity` DynamoDB table
+
+The SQS queue is configured with a redrive policy so messages that repeatedly fail processing are eventually moved to the dead-letter queue.
+
+The DynamoDB table uses `pk` as its partition key and `sk` as its sort key for the wallet activity access pattern.
 
 ### 3. Configure the API connection string
 
@@ -1006,10 +1168,16 @@ Migrations can also be managed through Visual Studio's Package Manager Console.
 
 ### 5. Run the API
 
-The Development environment already points the SQS integration to LocalStack:
+The Development environment points the AWS integrations to LocalStack:
 
 ```text
+SQS
 Queue:      transfer-completed
+Region:     us-east-1
+ServiceUrl: http://localhost:4566
+
+DynamoDB
+Table:      wallet-activity
 Region:     us-east-1
 ServiceUrl: http://localhost:4566
 ```
@@ -1071,6 +1239,9 @@ These tests cover scenarios including:
 * Transactional Outbox persistence
 * Outbox processing
 * idempotent consumer persistence and redelivery behavior
+* DynamoDB wallet activity upserts against LocalStack
+* deterministic DynamoDB projection keys
+* recent-activity ordering through DynamoDB `Query`
 
 A shared `PostgreSqlIntegrationTestFixture` creates `DbContext` instances and applies EF Core migrations before the integration test suite executes.
 
@@ -1082,6 +1253,30 @@ unique constraints
 transaction behavior
 relational persistence
 ```
+
+### LocalStack integration tests
+
+Tests that require LocalStack infrastructure are marked with:
+
+```text
+Category=LocalStack
+```
+
+Run only those tests with:
+
+```bash
+dotnet test TransferFlow.slnx --filter "Category=LocalStack"
+```
+
+Run the same test set used by CI with:
+
+```bash
+dotnet test TransferFlow.slnx --filter "Category!=LocalStack"
+```
+
+The LocalStack tests validate the real `DynamoDbWalletActivityProjection` against the local DynamoDB-compatible endpoint, including idempotent upserts and reverse chronological queries.
+
+The GitHub Actions pipeline intentionally excludes this category so CI does not depend on LocalStack credentials or LocalStack infrastructure.
 
 ### Local test database
 
@@ -1118,7 +1313,8 @@ restore
 ↓
 build Release
 ↓
-run complete test suite
+run CI test suite
+excluding LocalStack category
 ```
 
 The CI database starts empty.
@@ -1129,7 +1325,7 @@ This verifies that the project does not depend on developer-machine state such a
 
 LocalStack is intentionally not part of the current CI pipeline.
 
-The existing SQS processor integration tests validate message-processing behavior against real PostgreSQL while constructing the SQS message contract in-process. Full broker-level integration can be introduced later if the additional confidence justifies the extra test infrastructure.
+Tests tagged `Category=LocalStack` are excluded from GitHub Actions and remain available for local execution. The rest of the suite, including PostgreSQL integration tests, continues to run in CI against a disposable PostgreSQL service.
 
 ## Current Engineering Decisions
 
@@ -1203,6 +1399,26 @@ This increases test infrastructure cost slightly, but provides coverage for beha
 A temporary SQS outage does not prevent a transfer from being safely committed because the Outbox retains the event for later publication.
 
 PostgreSQL is therefore a readiness dependency for the HTTP API, while SQS is treated as an asynchronous dependency that should be monitored separately.
+
+### DynamoDB only for a justified access pattern
+
+DynamoDB was not introduced as a replacement for PostgreSQL or simply to add a NoSQL technology.
+
+It serves one concrete access pattern: retrieving recent activity for a wallet.
+
+The model is designed around that query using a wallet partition key and a time-ordered sort key.
+
+This keeps transactional financial state in PostgreSQL while allowing the read model to be optimized independently from the write model.
+
+### Eventual consistency is intentional
+
+Wallet activity is produced asynchronously from `TransferCompleted`.
+
+A newly committed transfer may therefore exist in PostgreSQL briefly before appearing in DynamoDB.
+
+The API does not use the DynamoDB projection to make financial decisions.
+
+This allows the read model to tolerate eventual consistency without weakening transaction correctness.
 
 ### One deployable application instead of microservices
 
@@ -1310,7 +1526,7 @@ A production deployment would require proper secret management, environment-spec
 
 * [x] Architecture documentation
 * [x] System design and trade-off documentation
-* [ ] DynamoDB activity projection as an optional extension
+* [x] DynamoDB wallet activity projection
 
 ## Learning Goals
 
@@ -1330,4 +1546,9 @@ TransferFlow is intentionally built incrementally to explore:
 * idempotent consumers
 * observability
 * unit and integration testing
+* DynamoDB partition key and sort key modeling
+* NoSQL modeling by access pattern
+* eventual consistency
+* event-driven read projections
+* PostgreSQL vs DynamoDB trade-offs
 * backend system design

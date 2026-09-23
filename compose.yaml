@@ -26,7 +26,7 @@ services:
 
     environment:
       LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
-      SERVICES: sqs
+      SERVICES: sqs,dynamodb
       DEBUG: 0
 
     ports:
@@ -34,6 +34,7 @@ services:
 
     volumes:
       - ./docker/localstack/init-sqs.sh:/etc/localstack/init/ready.d/init-sqs.sh
+      - ./docker/localstack/init-dynamodb.sh:/etc/localstack/init/ready.d/init-dynamodb.sh
 
 volumes:
   postgres_data:
