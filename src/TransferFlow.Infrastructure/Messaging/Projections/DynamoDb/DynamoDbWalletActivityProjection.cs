@@ -28,14 +28,14 @@ internal sealed class DynamoDbWalletActivityProjection(
             TableName = _options.TableName,
             Item = new Dictionary<string, AttributeValue>
             {
-                ["pk"] = new ()
+                ["pk"] = new()
                 {
-                    S = activity.WalletId.ToString()
+                    S = $"WALLET#{activity.WalletId}"
                 },
 
-                ["sk"] = new ()
+                ["sk"] = new()
                 {
-                    S = $"{occurredAtUtc}#{activity.TransferId}"
+                    S = $"ACTIVITY#{occurredAtUtc}#{activity.TransferId}"
                 },
 
                 ["transferId"] = new()
@@ -88,12 +88,12 @@ internal sealed class DynamoDbWalletActivityProjection(
             TableName = _options.TableName,
             KeyConditionExpression = "pk = :pk",
             ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-            {
-                [":pk"] = new ()
                 {
-                    S = walletId.ToString()
-                }
-            },
+                    [":pk"] = new()
+                    {
+                        S = $"WALLET#{walletId}"
+                    }
+                },
             Limit = limit,
             ScanIndexForward = false // Get the most recent items first
         };
