@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using TransferFlow.Api.Health;
@@ -9,6 +10,7 @@ using TransferFlow.Application.Observability;
 using TransferFlow.Application.Transfers;
 using TransferFlow.Application.Wallets;
 using TransferFlow.Infrastructure.Messaging.Outbox;
+using TransferFlow.Infrastructure.Messaging.Projections.DynamoDb;
 using TransferFlow.Infrastructure.Persistence;
 using TransferFlow.Infrastructure.Persistence.Repositories;
 
@@ -20,6 +22,8 @@ var connectionString =
         "Connection string 'Database' was not found.");
 
 builder.Services.AddOutboxProcessing(builder.Configuration);
+
+builder.Services.AddDynamoDbProjection(builder.Configuration);
 
 builder.Services.AddDbContext<TransferFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -37,10 +41,19 @@ builder.Services.AddScoped<ITransferRepository, TransferRepository>();
 
 builder.Services.AddScoped<CreateWalletUseCase>();
 builder.Services.AddScoped<GetWalletByIdUseCase>();
+builder.Services.AddScoped<GetWalletActivitiesUseCase>();
 builder.Services.AddScoped<CreateTransferUseCase>();
 builder.Services.AddScoped<GetTransferByIdUseCase>();
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions
+            .Converters
+            .Add(new JsonStringEnumConverter());
+    });
+
 builder.Services.AddOpenApi();
 
 builder.Services

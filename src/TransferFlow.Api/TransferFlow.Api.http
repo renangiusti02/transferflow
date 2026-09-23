@@ -20,6 +20,9 @@ POST {{TransferFlow.Api_HostAddress}}/wallets
 
 GET {{TransferFlow.Api_HostAddress}}/wallets/e787d809-dd8f-4915-b97c-e7d4e94aa700
 
+### Get wallet activities
+GET {{TransferFlow.Api_HostAddress}}/wallets/8724a295-842d-4343-a99c-5f8bfa1ecdfa/activities
+
 ### Create transfer
 
 POST {{TransferFlow.Api_HostAddress}}/transfers

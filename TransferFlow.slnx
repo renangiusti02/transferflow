@@ -1,12 +1,14 @@
 <Solution>
   <Folder Name="/docker/" />
   <Folder Name="/docker/localstack/">
+    <File Path="docker/localstack/init-dynamodb.sh" />
     <File Path="docker/localstack/init-sqs.sh" />
   </Folder>
   <Folder Name="/Itens de Solução/">
     <File Path=".editorconfig" />
     <File Path=".env" />
     <File Path=".env.example" />
+    <File Path=".github/workflows/ci.yml" />
     <File Path=".gitignore" />
     <File Path="compose.yaml" />
     <File Path="README.md" />
