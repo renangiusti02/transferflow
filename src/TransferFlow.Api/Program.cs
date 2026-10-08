@@ -1,6 +1,8 @@
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using System.Text.Json.Serialization;
 using TransferFlow.Api.Health;
 using TransferFlow.Api.Middleware;
 using TransferFlow.Api.Observability;
@@ -14,12 +16,23 @@ using TransferFlow.Infrastructure.Messaging.Projections.DynamoDb;
 using TransferFlow.Infrastructure.Persistence;
 using TransferFlow.Infrastructure.Persistence.Repositories;
 
+const string serviceName = "transferflow-api";
+
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString =
     builder.Configuration.GetConnectionString("Database")
     ?? throw new InvalidOperationException(
         "Connection string 'Database' was not found.");
+
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource =>
+        resource.AddService(serviceName))
+    .WithTracing(tracing =>
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddConsoleExporter());
 
 builder.Services.AddOutboxProcessing(builder.Configuration);
 
